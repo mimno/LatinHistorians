@@ -1,0 +1,20 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Corpus parses (151 MB; regenerate with `uv run parse_texts.py`)
+parsed/
+
+# Regenerable pipeline intermediates
+phrase_examples.jsonl
+lemma_field_input.json
+lemma_requests.json
+notes_input.json
+.ipynb_checkpoints/
