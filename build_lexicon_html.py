@@ -1,10 +1,10 @@
 """Render phrase_inventory.json + architectures.json (+ optional
-cluster_notes.json with small-model example translations) into a single
-self-contained browsable HTML page: phrase_lexicon.html.
+cluster_notes.json with small-model example translations, if present) into
+the docs/ site: docs/index.html + docs/examples/*.html.
 
 Display names for signatures are generated from templates here, so they are
-deterministic and grammatically conventional; the model contributes only
-translations / reader notes.
+deterministic and grammatically conventional; cluster_notes.json, when
+present, contributes only a translation line per cluster.
 """
 import hashlib
 import html
@@ -406,8 +406,8 @@ Caesar, Sallust, Livy, Curtius, Tacitus, Suetonius, Ammianus, and the Historia A
 Bars show frequency per 1,000 sentences.</p>
 {''.join(parts)}
 <p class="foot">Latin texts from <a href="https://www.thelatinlibrary.com/">The Latin Library</a>.
-Morphology and dependency parses by <a href="https://cltk.org/">CLTK</a>; construction extraction,
-semantic-field grouping, and example translations are automatic and may contain errors.</p>
+Morphology and dependency parses by <a href="https://huggingface.co/latincy">LatinCy</a>;
+construction extraction and semantic-field grouping are automatic and may contain errors.</p>
 </main></div></body></html>"""
     SITE_DIR.mkdir(exist_ok=True)
     out = SITE_DIR / "index.html"
@@ -478,7 +478,7 @@ def write_example_pages(inv):
 {f'<p class="gnote">{html.escape(gnote)}</p>' if gnote else ''}
 {''.join(secs)}
 <p class="foot">Latin texts from <a href="https://www.thelatinlibrary.com/">The Latin Library</a>.
-Parses by <a href="https://cltk.org/">CLTK</a>; extraction is automatic and may contain errors.</p>
+Parses by <a href="https://huggingface.co/latincy">LatinCy</a>; extraction is automatic and may contain errors.</p>
 </main></body></html>"""
         (EX_DIR / f"{slug(fam, key)}.html").write_text(page, encoding="utf-8")
     print(f"Wrote {len(groups)} example pages to {EX_DIR}/")
