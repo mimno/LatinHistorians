@@ -9,8 +9,10 @@ wheels/
 # Virtual environments
 .venv
 
-# Corpus parses (151 MB; regenerate with `uv run parse_texts.py`)
+# Corpus parses (regenerate with `uv run parse_texts_latincy.py`, or
+# `uv run parse_texts.py` for the legacy CLTK parses)
 parsed/
+parsed_latincy/
 
 # Regenerable pipeline intermediates
 phrase_examples.jsonl

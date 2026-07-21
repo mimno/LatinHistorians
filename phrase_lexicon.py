@@ -81,7 +81,9 @@ OUT_DIR = Path("/Users/mimno/Documents/Data/LatinHistorians")
 FIELDS = {"verbs": {}, "nouns": {}}
 _fields_path = OUT_DIR / "lemma_fields.json"
 if _fields_path.exists():
-    FIELDS = json.loads(_fields_path.read_text())
+    _raw_fields = json.loads(_fields_path.read_text())
+    FIELDS = {kind: {k.lower().replace("v", "u"): v for k, v in table.items()}
+              for kind, table in _raw_fields.items()}
     print(f"Loaded semantic fields: {len(FIELDS['verbs'])} verbs, {len(FIELDS['nouns'])} nouns")
 
 
@@ -94,6 +96,24 @@ def nfield(lemma):
 
 # ---------------------------------------------------------------- helpers
 
+# Key-aware normalization of UD-abbreviated feature values (LatinCy) onto
+# the long-form vocabulary this module was written against (CLTK). CLTK
+# values pass through untouched, so both parse sets read identically.
+UD_VALUE_MAP = {
+    "Mood": {"Ind": "indicative", "Sub": "subjunctive", "Imp": "imperative"},
+    "Tense": {"Pres": "present", "Past": "past", "Pqp": "pluperfect",
+              "Fut": "future", "Imp": "past", "Perf": "past", "FutPerf": "future"},
+    "Aspect": {"Imp": "imperfective", "Perf": "perfective",
+               "Prosp": "prospective", "Inch": "imperfective"},
+    "VerbForm": {"Fin": "finite", "Inf": "infinitive", "Part": "participle",
+                 "Sup": "supine"},
+    "Voice": {"Act": "active", "Pass": "passive", "Mid": "passive"},
+    "Case": {"Nom": "nominative", "Gen": "genitive", "Dat": "dative",
+             "Acc": "accusative", "Abl": "ablative", "Voc": "vocative",
+             "Loc": "locative"},
+}
+
+
 def feats_dict(s):
     if not s or s == "_":
         return {}
@@ -102,6 +122,26 @@ def feats_dict(s):
         if "=" in kv:
             k, v = kv.split("=", 1)
             out[k] = v
+    # LatinCy distinguishes gerundive/gerund/supine VerbForms; fold the first
+    # two onto the prospective-participle path the extraction rules use.
+    vf = out.get("VerbForm")
+    if vf in ("Gdv", "Ger"):
+        out["VerbForm"] = "participle"
+        out["Aspect"] = "prospective"
+        out.setdefault("Voice", "Pass")
+        out["GdvGer"] = "gerundive" if vf == "Gdv" else "gerund"
+    if "PronType" in out:
+        out["PronominalType"] = {
+            "Rel": "relative", "Int": "interrogative",
+        }.get(out["PronType"], out["PronType"].lower())
+    for k, v in out.items():
+        m = UD_VALUE_MAP.get(k)
+        if m and v in m:
+            out[k] = m[v]
+    # UD Tense=Imp/Perf collapse to past + an explicit aspect
+    raw_tense = s and re.search(r"Tense=(Imp|Perf)\b", s)
+    if raw_tense:
+        out["Aspect"] = "imperfective" if raw_tense.group(1) == "Imp" else "perfective"
     return out
 
 
@@ -189,23 +229,40 @@ def clause_moodtense(head_row, children, by_id):
     return None
 
 
+def norm_lemma(s):
+    """Lowercase and fold v onto u: CLTK lemmas mix orthographies (video /
+    uideo) and LatinCy is consistently u-only; one convention makes lemma
+    tables and marker sets work for both."""
+    return s.lower().replace("v", "u")
+
+
 def norm_marker(lemma):
-    l = lemma.lower().replace("u", "u").replace("v", "v")
-    l = l.replace("uelut", "velut")
+    l = norm_lemma(lemma)
     return {
         "uti": "ut", "utque": "ut", "cumque": "cum", "sicuti": "sicut",
-        "veluti": "velut", "ueluti": "velut", "uelut": "velut",
-        "posteaquam": "postquam", "neu": "neve", "seu": "sive",
+        "ueluti": "uelut", "posteaquam": "postquam", "neu": "neue", "seu": "siue",
     }.get(l, l)
 
 
-# marker -> family routing
-COND_MARKERS = {"si", "nisi", "ni", "sin", "sive"}
-CONC_MARKERS = {"quamquam", "quamvis", "quamuis", "etsi", "tametsi", "etiamsi", "licet", "quamlibet"}
+# marker -> family routing (u-orthography; incoming lemmas are norm_lemma'd)
+COND_MARKERS = {"si", "nisi", "ni", "sin", "siue"}
+CONC_MARKERS = {"quamquam", "quamuis", "etsi", "tametsi", "etiamsi", "licet", "quamlibet"}
 CAUSAL_MARKERS = {"quod", "quia", "quoniam", "quippe", "siquidem", "quando"}
 TEMPORAL_MARKERS = {"postquam", "ubi", "simul", "simulac", "simulatque", "dum", "donec", "quoad", "priusquam", "antequam"}
-COMP_MARKERS = {"quam", "velut", "tamquam", "sicut", "quasi", "ceu", "prout", "quemadmodum"}
-FINAL_MARKERS = {"ut", "ne", "quo", "quin", "quominus", "neve"}
+COMP_MARKERS = {"quam", "uelut", "tamquam", "sicut", "quasi", "ceu", "prout", "quemadmodum"}
+FINAL_MARKERS = {"ut", "ne", "quo", "quin", "quominus", "neue"}
+
+
+REL_PRON_LEMMAS = {"qui", "quicumque", "quisquis"}
+
+
+def is_rel_pron(row):
+    """Relative pronoun test that works with and without PronType features:
+    CLTK marks PronominalType=relative; LatinCy emits no PronType at all, so
+    fall back to the lemma (interrogative quis has its own lemma)."""
+    if norm_lemma(row["lemma"]) not in REL_PRON_LEMMAS:
+        return False
+    return row["feats_d"].get("PronominalType") in (None, "relative")
 INDQ_MARKERS = {"num", "an", "utrum", "anne", "necne", "cur", "quare", "quomodo", "quorsum", "unde", "quando"}
 INTERROG_LEMMAS = INDQ_MARKERS | {"quis", "quid", "uter", "qualis", "quantus", "quot", "quotiens", "ubi"}
 
@@ -315,8 +372,8 @@ def extract_units(sent, by_id, children):
             for cid in range(lo, hi + 1):
                 cr = by_id.get(cid)
                 if cr and (cr["feats_d"].get("PronominalType") == "interrogative"
-                           or cr["lemma"].lower() in INDQ_MARKERS):
-                    wh = cr["lemma"].lower()
+                           or norm_lemma(cr["lemma"]) in INTERROG_LEMMAS):
+                    wh = norm_lemma(cr["lemma"])
                     break
             if wh:
                 matrix = by_id.get(r["head"])
@@ -336,7 +393,7 @@ def extract_units(sent, by_id, children):
             pron = None
             for cid in range(lo, hi + 1):
                 cr = by_id.get(cid)
-                if cr and cr["feats_d"].get("PronominalType") == "relative" and cr["lemma"].lower() in ("qui", "quicumque", "quisquis"):
+                if cr and is_rel_pron(cr):
                     pron = cr
                     break
             if pron is None:
@@ -353,7 +410,7 @@ def extract_units(sent, by_id, children):
     # --- connecting relative (sentence-initial relative pronoun, main clause)
     if non_punct:
         first = non_punct[0]
-        if first["feats_d"].get("PronominalType") == "relative" and first["lemma"].lower() == "qui":
+        if is_rel_pron(first) and first["upos"] in ("PRON", "DET"):
             in_relcl = False
             node = first
             for _ in range(30):
@@ -410,10 +467,14 @@ def extract_units(sent, by_id, children):
         fd = r["feats_d"]
         if fd.get("VerbForm") == "participle":
             asp, voice = fd.get("Aspect"), fd.get("Voice")
-            if asp == "perfective":
+            if r["upos"] == "VERB" and FUT_PTCP_RE.search(r["form"]):
+                sub = "fut-act"
+            elif asp == "perfective":
                 sub = "perf-pass"
-            elif asp == "imperfective":
-                sub = "pres-act"
+            elif asp == "imperfective" or (asp is None and voice == "active"):
+                sub = "pres-act"  # see the matching fallback in the participle family
+            elif asp == "prospective":
+                sub = "gerundive"
             else:
                 sub = "gerundive"
         else:
@@ -442,9 +503,15 @@ def extract_units(sent, by_id, children):
         asp, voice, case = fd.get("Aspect"), fd.get("Voice"), fd.get("Case", "?")
         if r["upos"] == "VERB" and FUT_PTCP_RE.search(r["form"]):
             vlabel = "fut-act"
+        elif asp == "perfective" and voice == "passive":
+            vlabel = "perf-pass"
+        elif asp == "imperfective" or (asp is None and voice == "active"):
+            # Latin's only synthetic active participle besides -turus is the
+            # present (-ns/-ntis); some LatinCy participle rows carry Voice
+            # but no Aspect, so an untagged active participle defaults here.
+            vlabel = "pres-act"
         else:
-            vlabel = "perf-pass" if (asp == "perfective" and voice == "passive") else \
-                     "pres-act" if asp == "imperfective" else f"{asp}-{voice}"
+            vlabel = f"{asp}-{voice}"
         role = {"nominative": "of-subject", "accusative": "of-object"}.get(case, "other-case")
         pf = vfield(r["lemma"].lower())
         field_sfx = f"|{pf}" if pf else ""
@@ -558,7 +625,7 @@ def main():
                 if "VerbForm=finite" in line:
                     cols = line.split("\t")
                     if len(cols) > 5 and cols[3] in ("VERB", "AUX"):
-                        FINITE_LEMMAS[cols[2].lower()] += 1
+                        FINITE_LEMMAS[norm_lemma(cols[2])] += 1
 
     examples_f = open(OUT_DIR / "phrase_examples.jsonl", "w", encoding="utf-8")
     for name in TEXTS:
@@ -566,6 +633,7 @@ def main():
         for meta, sent in parse_conllu_meta(PARSED_DIR / f"{name}.conllu"):
             for r in sent:
                 r["feats_d"] = feats_dict(r["feats"])
+                r["lemma"] = norm_lemma(r["lemma"])
             by_id, children = build_indices(sent)
             totals["sentences"][name] += 1
             n_words = sum(1 for r in sent if r["upos"] != "PUNCT")

@@ -1,6 +1,10 @@
 """Annotate the Latin historian texts with parts of speech and dependency
 parse trees using CLTK (backed by Stanza's Latin ITTB model), writing one
 CoNLL-U file per source text into parsed/.
+
+Legacy path: the pipeline now uses parse_texts_latincy.py. The text-prep
+helpers here were copied into textprep.py for that script (this file keeps
+its own copies so it stays runnable in the cltk-pinned project env).
 """
 import re
 from dataclasses import dataclass, field

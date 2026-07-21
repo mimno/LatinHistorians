@@ -3,11 +3,15 @@ corpus: sentence length, dependency distance, non-projectivity (hyperbaton),
 subordination, tree depth, and lexical rarity.
 """
 import json
+import os
 import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
 
-PARSED_DIR = Path("/Users/mimno/Documents/Data/LatinHistorians/parsed")
+# LatinCy parses (parsed_latincy/) are the default; set PARSED_DIR=parsed in
+# the environment to analyze the legacy CLTK parses instead.
+PARSED_DIR = Path("/Users/mimno/Documents/Data/LatinHistorians") / os.environ.get(
+    "PARSED_DIR", "parsed_latincy")
 TEXTS = [
     "caesar",
     "suetonius",

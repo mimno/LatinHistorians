@@ -10,6 +10,7 @@ import hashlib
 import html
 import json
 import re
+import shutil
 from collections import defaultdict
 from pathlib import Path
 
@@ -190,6 +191,7 @@ def describe(fam, sig):
         initial = "+initial" in body
         body = body.replace("+initial", "")
         sub = {"perf-pass": "perfect passive participle", "pres-act": "present active participle",
+               "fut-act": "future active participle",
                "verbless": "verbless (noun + noun/adjective)", "gerundive": "gerundive"}.get(body, body)
         name = sub
         if f:
@@ -438,7 +440,12 @@ mark{background:#ffe9a8;padding:0 2px;border-radius:2px}
 def write_example_pages(inv):
     """One page per cluster with every corpus instance, grouped by author in
     corpus order, with chapter/sent_id citations."""
-    EX_DIR.mkdir(exist_ok=True)
+    # Slugs churn as extraction rules change; a stale prior page (e.g. an old
+    # "None-active" bug) would otherwise linger forever since we only ever
+    # write, never clean, this directory.
+    if EX_DIR.exists():
+        shutil.rmtree(EX_DIR)
+    EX_DIR.mkdir()
     key_map = inv.get("key_map", {})
     groups = defaultdict(lambda: defaultdict(list))  # (fam, key) -> author -> [<li>...]
     with open(DIR / "phrase_examples.jsonl", encoding="utf-8") as f:
