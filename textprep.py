@@ -148,6 +148,17 @@ def strip_editorial_markers(text: str):
             continue
         break
     text = INLINE_SECTION_NUM_RE.sub("", text)
+    # The Latin Library marks editorial supplements -- letters or words an
+    # editor restored to a damaged or corrupt manuscript -- with [square] or
+    # <angle> brackets, e.g. "renite[n]tem", "c<ivit>a<te>s", "[post]quam".
+    # These are meant to be read as ordinary running text, so drop just the
+    # delimiters and keep the supplied content. This isn't only cosmetic:
+    # when a bracket lands with no surrounding space it glues to the next
+    # word (e.g. "]quam"), and that malformed token was observed to corrupt
+    # LatinCy's sentence segmenter for the rest of the paragraph, merging
+    # dozens of real sentences into one -- see the "ch. 14 / livy-11172"
+    # bug report this fix addresses.
+    text = re.sub(r"[\[\]<>]", "", text)
     text = re.sub(r"[ \t]+", " ", text)
     # Stripping a bare digit can leave a stray space before punctuation
     # (e.g. "petiverunt 3, parsque" -> "petiverunt , parsque"); tidy it up.

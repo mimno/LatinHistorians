@@ -736,7 +736,19 @@
 "uito": "do",
 "uoueo": "say",
 "uulgo": "say",
-"uulnero": "war"
+"uulnero": "war",
+"adhortor": "command",
+"admoueo": "motion",
+"appeto": "motion",
+"depono": "give",
+"detraho": "give",
+"dissimulo": "say",
+"frango": "war",
+"immitto": "war",
+"nudo": "do",
+"prorogo": "do",
+"quaeso": "command",
+"somnio": "think"
 },
 "nouns": {
 "acies": "military",
@@ -1088,6 +1100,8 @@
 "uita": "abstract",
 "uitium": "abstract",
 "uox": "speech",
-"uulnus": "body"
+"uulnus": "body",
+"fulmen": "other",
+"sumptus": "abstract"
 }
 }
