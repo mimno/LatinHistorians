@@ -14,6 +14,8 @@ import shutil
 from collections import defaultdict
 from pathlib import Path
 
+from citation import short_citation
+
 DIR = Path("/Users/mimno/Documents/Data/LatinHistorians")
 SITE_DIR = DIR / "docs"          # served by GitHub Pages (main branch, /docs)
 EX_DIR = SITE_DIR / "examples"
@@ -428,7 +430,7 @@ h2 .n{color:#999;font-size:13px;font-family:Helvetica,Arial,sans-serif;font-weig
 ul.exx{margin:8px 0;padding-left:18px;font-size:14px}
 ul.exx li{margin:6px 0}
 .cite{font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#8a795a;background:#f0ead9;
-      border-radius:3px;padding:1px 5px;margin-right:4px;display:inline-block}
+      border-radius:3px;padding:1px 5px;margin-right:4px;white-space:nowrap}
 mark{background:#ffe9a8;padding:0 2px;border-radius:2px}
 .gnote{color:#6b5d3f;font-size:14px;font-style:italic}
 .foot{color:#999;font-size:12px;font-family:Helvetica,Arial,sans-serif;margin-top:36px;
@@ -452,10 +454,8 @@ def write_example_pages(inv):
         for line in f:
             e = json.loads(line)
             key = key_map.get(e["fam"], {}).get(e["sig"], e["sig"])
-            cite = " · ".join(b for b in
-                              (e.get("book", ""),
-                               f"ch. {e['chapter']}" if e.get("chapter") else "",
-                               e.get("sent_id", "")) if b)
+            short = short_citation(e["author"], e.get("book", ""), e.get("chapter", ""))
+            cite = " · ".join(b for b in (short, e.get("sent_id", "")) if b)
             groups[(e["fam"], key)][e["author"]].append(
                 f'<li><span class="cite">{html.escape(cite)}</span> {e["html"]}</li>')
 
